@@ -1,0 +1,3 @@
+# We are a C++ project so just list C files as C++ for convenience.
+*.h linguist-language=C++
+*.c linguist-language=C++
