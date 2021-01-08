@@ -20,7 +20,7 @@
 #include "stb/stb_image_resize.h"
 
 #define MAKEICON_VERSION_MAJOR 1
-#define MAKEICON_VERSION_MINOR 0
+#define MAKEICON_VERSION_MINOR 1
 
 typedef  uint8_t  U8;
 typedef uint16_t U16;
@@ -182,7 +182,7 @@ static void PrintHelpMessage ()
     "makeicon [-resize] -sizes:x,y,z,w,... -input:x,y,z,w,... output\n"
     "\n"
     "    -sizes: ...  [Required]  Comma-separated input size(s) of icon image to generate for the output icon.\n"
-    "    -input: ...  [Required]  Comma-separated input image(s) to be used to generate the icon sizes.\n"
+    "    -input: ...  [Required]  Comma-separated input image(s) and/or directories to be used to generate the icon sizes.\n"
     "    -resize      [Optional]  Whether to resize input images to match the specified sizes.\n"
     // "    -detail      [Optional]  Prints out detailed information on what the program is doing.\n"
     "    -version     [Optional]  Prints out the current version number of the makeicon binary and exits.\n"
@@ -348,7 +348,17 @@ int main (int argc, char** argv)
                     for (auto& param: arg.params) options.sizes.push_back(std::stoi(param));
                     if (options.sizes.empty()) FATAL_ERROR("No sizes provided with -sizes argument!");
                 } else if (arg.name == "input") {
-                    for (auto& param: arg.params) options.input.push_back(param);
+                    for (auto& param: arg.params) {
+                        if (std::filesystem::is_directory(param)) {
+                            for(auto& p: std::filesystem::directory_iterator(param)) {
+                                if (std::filesystem::is_regular_file(p)) {
+                                    options.input.push_back(p.path().string());
+                                }
+                            }
+                        } else {
+                            options.input.push_back(param);
+                        }
+                    }
                     if (options.input.empty()) FATAL_ERROR("No input provided with -input argument!");
                 } else if (arg.name == "version") {
                     PrintVersionMessage();
