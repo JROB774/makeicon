@@ -1,7 +1,7 @@
 @echo off
 
 :: Can be either "Debug" or "Release"
-set BuildMode=Debug
+set BuildMode=Release
 :: Can be either "x86" or "amd64"
 set Architecture=amd64
 
