@@ -10,8 +10,6 @@ call %VSDevPath% -no_logo -arch=%Architecture%
 
 if not exist %OutputPath% mkdir %OutputPath%
 
-if %BuildMode%==Release rc -nologo -i %ResourcePath% %ResourceFile%
-
 call build\win32\timer.bat "cl %IncludeDirs% %Defines% %CompilerFlags% %CompilerWarnings% -Fe%OutputExecutable% %InputSource% -link %LinkerFlags% %LinkerWarnings% %LibraryDirs% %Libraries% %InputResource%"
 
 pushd %OutputPath%
