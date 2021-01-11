@@ -2,7 +2,6 @@
 
 *.pdb
 *.log
-*.exe
 *.dmp
 *.res
 *.obj
