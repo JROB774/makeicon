@@ -20,7 +20,7 @@
 #include "stb/stb_image_resize.h"
 
 #define MAKEICON_VERSION_MAJOR 1
-#define MAKEICON_VERSION_MINOR 1
+#define MAKEICON_VERSION_MINOR 2
 
 typedef  uint8_t  U8;
 typedef uint16_t U16;
@@ -182,7 +182,7 @@ static void PrintHelpMessage ()
     "makeicon [-resize] -sizes:x,y,z,w,... -input:x,y,z,w,... output\n"
     "\n"
     "    -sizes: ...  [Required]  Comma-separated input size(s) of icon image to generate for the output icon.\n"
-    "    -input: ...  [Required]  Comma-separated input image(s) and/or directories to be used to generate the icon sizes.\n"
+    "    -input: ...  [Required]  Comma-separated input image(s) and/or directories and/or .txt files containing file names to be used to generate the icon sizes.\n"
     "    -resize      [Optional]  Whether to resize input images to match the specified sizes.\n"
     // "    -detail      [Optional]  Prints out detailed information on what the program is doing.\n"
     "    -version     [Optional]  Prints out the current version number of the makeicon binary and exits.\n"
@@ -356,7 +356,22 @@ int main (int argc, char** argv)
                                 }
                             }
                         } else {
-                            options.input.push_back(param);
+                            if (std::filesystem::path(param).extension() == ".txt") {
+                               // If it's a text file we read each line and add those as file names for input.
+                                std::ifstream file(param);
+                                if (!file.is_open()) {
+                                    FATAL_ERROR("Failed to read .txt file passed in as input: " << param);
+                                } else {
+                                    std::string line;
+                                    while(getline(file, line)) {
+                                        if (std::filesystem::is_regular_file(line)) {
+                                            options.input.push_back(line);
+                                        }
+                                    }
+                                }
+                            } else {
+                                options.input.push_back(param);
+                            }
                         }
                     }
                     if (options.input.empty()) FATAL_ERROR("No input provided with -input argument!");
