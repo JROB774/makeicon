@@ -25,7 +25,7 @@ set InputResource=
 set InputSource=source\makeicon.cpp
 
 set OutputPath=binary\win32\
-set OutputName=makeicon-%Architecture%
+set OutputName=makeicon
 
 if %BuildMode%==Release (
     set Defines=%Defines% -DNDEBUG
