@@ -7,7 +7,7 @@ set Architecture=amd64
 
 set Libraries=setargv.obj
 
-set IncludeDirs=
+set IncludeDirs=-I source\third_party\stb
 set LibraryDirs=
 
 set Defines=-D_CRT_SECURE_NO_WARNINGS -DPLATFORM_WIN32
@@ -22,7 +22,7 @@ set ResourceFile=
 set ResourcePath=
 
 set InputResource=
-set InputSource=source\makeicon.cpp
+set InputSource=source\mi_main.cpp
 
 set OutputPath=binary\win32\
 set OutputName=makeicon
