@@ -4,3 +4,5 @@ binary/
 
 *.sublime-project
 *.sublime-workspace
+
+test.*
