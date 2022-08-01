@@ -25,6 +25,7 @@ workspace("makeicon" .. platform)
     cppdialect "C++17"
     location("build/" .. platform)
     targetdir("bin/" .. platform)
+    debugdir("bin/" .. platform)
     
     files
     {
@@ -34,5 +35,6 @@ workspace("makeicon" .. platform)
     
     includedirs
     {
+        "include",
         "third_party/stb"
     }
