@@ -1,13 +1,8 @@
+binary/
+
 .vs/
 
-*.pdb
-*.log
-*.dmp
-*.res
-*.obj
-
-*.png
-*.bmp
-*.ico
-
+*.sublime-project
 *.sublime-workspace
+
+test*.*
