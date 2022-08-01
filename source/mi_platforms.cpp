@@ -193,6 +193,7 @@ int make_icon_apple(const Options& options, std::vector<Image>& input_images)
 {
     if(options.contents.empty()) ERROR("No contents json file specified! Specify contents file using: -sizes:Contents.json...");
     
+    // read in json contents file that specifies the required output images
     FILE* file = fopen(options.contents.c_str(), "rb");
     
     if (!file) ERROR("Failed to open contents file!");
@@ -219,6 +220,7 @@ int make_icon_apple(const Options& options, std::vector<Image>& input_images)
         std::filesystem::create_directory(output_directory);
     }
     
+    // iterate over the lines of json and find parameters for resizing and saving the images
     std::string filename = "";
     int scale = 0;
     int size = 0;
