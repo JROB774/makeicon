@@ -265,7 +265,9 @@ int make_icon_apple(const Options& options, std::vector<Image>& input_images)
     delete[] buf;
     
     // copy the contents file to the output directory so all data is packaged together
-    std::filesystem::copy(options.contents, options.output + "/Contents.json");
+    std::string outputContentsPath = options.output + "/Contents.json";
+    if(options.contents != outputContentsPath)
+        std::filesystem::copy(options.contents, outputContentsPath);
     
     return EXIT_SUCCESS;
 }
