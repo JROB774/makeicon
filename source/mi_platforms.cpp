@@ -222,8 +222,8 @@ int make_icon_apple(const Options& options, std::vector<Image>& input_images)
     
     // iterate over the lines of json and find parameters for resizing and saving the images
     std::string filename = "";
-    int scale = 0;
-    int size = 0;
+    float scale = 0;
+    float size = 0;
     while(getline(ss, to, '\n'))
     {
         int start = to.find(": \"") + 3;
@@ -236,12 +236,12 @@ int make_icon_apple(const Options& options, std::vector<Image>& input_images)
         else if(to.find("scale") != -1)
         {
             int end = to.find("x");
-            scale = std::stoi(to.substr(start, (end - start)));
+            scale = std::stof(to.substr(start, (end - start)));
         }
         else if (to.find("size") != -1)
         {
             int end = to.find("x");
-            size = std::stoi(to.substr(start, (end - start)));
+            size = std::stof(to.substr(start, (end - start)));
         }
         
         // erase all stored parameters on hitting the end of the json object
