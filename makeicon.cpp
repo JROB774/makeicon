@@ -73,7 +73,7 @@ enum Platform_
 static constexpr const char* PLATFORM_NAMES[Platform_COUNT] = { "win32", "osx", "ios", "android" };
 
 static constexpr const char* MAKEICON_HELP_MESSAGE =
-"makeicon [-resize] -sizes:x,y,z,w,... -input:x,y,z,w,... output\n"
+"makeicon [-help] [-version] [-resize] [-platform:name] -sizes:x,y,z... -input:x,y,z... output\n"
 "\n"
 "    -sizes: ...  [Required]  Comma-separated input size(s) of icon image to generate for the output icon.\n"
 "    -input: ...  [Required]  Comma-separated input image(s) and/or directories and/or .txt files containing file names to be used to generate the icon sizes.\n"
