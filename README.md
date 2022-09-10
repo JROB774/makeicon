@@ -7,12 +7,8 @@ following platforms: **Windows**, **iOS**, **MacOS**, **Android**.
 ## Usage
 
 ```
-makeicon [-resize] [-platform:name] -sizes:x,y,z,w,... -input:x,y,z,w,... output
+makeicon [-help] [-version] [-resize] [-platform:name] -sizes:x,y,z... -input:x,y,z... output
 ```
-
-Run `makeicon -version` to get information on the binary version.
-
-Run `makeicon -help` to get more information on how to use it.
 
 ## Releases
 
