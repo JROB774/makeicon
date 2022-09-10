@@ -15,8 +15,6 @@ following platforms:
 makeicon [-resize] [-platform:name] -sizes:x,y,z,w,... -input:x,y,z,w,... output
 ```
 
-Arguments:
-
 | Name       | Status   | Description                                                                                                                      |
 |------------|----------|----------------------------------------------------------------------------------------------------------------------------------|
 | `sizes`    | Required | Comma-separated input size(s) of icon image to generate for the output icon.                                                     |
