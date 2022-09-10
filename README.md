@@ -33,8 +33,6 @@ codebase as a submodule. These binaries are always the latest version. There
 are also binaries available for download from this repository's releases tab.
 From here you can download any previous version which you require.
 
-Commits for each of the major release version are tagged.
-
 ## License
 
 This project is available under the MIT License, Copyright (c) Joshua Robertson 2021-2022
