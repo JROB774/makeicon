@@ -1,5 +1,7 @@
 # makeicon
 
+![build](https://github.com/jrob774/makeicon/actions/workflows/build.yaml/badge.svg)
+
 ```
 makeicon [-help] [-version] [-resize] [-platform:name] -sizes:x,y,z... -input:x,y,z... output
 ```
@@ -22,6 +24,12 @@ cl -EHsc -std:c++17 -I third_party/stb makeicon.cpp -Fe:makeicon.exe
 
 ```
 clang++ -std=c++17 -I third_party/stb makeicon.cpp -o makeicon
+```
+
+### Linux
+
+```
+g++ -std=c++17 -I third_party/stb makeicon.cpp -o makeicon
 ```
 
 ## Releases
