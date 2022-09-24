@@ -1,0 +1,25 @@
+name: build
+on: [push, pull_request]
+jobs:
+  build-win32:
+    runs-on: windows-2019
+    steps:
+      - uses: seanmiddleditch/gha-setup-vsdevenv@master
+      - uses: actions/checkout@v3
+      - name: build
+        run: |
+          cl -EHsc -std:c++17 -I third_party/stb makeicon.cpp -Fe:makeicon.exe
+  build-osx:
+    runs-on: macOS-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: build
+        run: |
+          clang++ -std=c++17 -I third_party/stb makeicon.cpp -o makeicon
+  build-linux:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: build
+        run: |
+          g++ -std=c++17 -I third_party/stb makeicon.cpp -o makeicon
