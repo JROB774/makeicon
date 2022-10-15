@@ -665,21 +665,21 @@ s32 make_icon_apple(const Options& options, std::vector<Image>& input_images)
     f32 size = 0;
     while(getline(ss, to, '\n'))
     {
-        s32 start = to.find(": \"") + 3;
+        s32 start = CAST(s32, to.find(": \"") + 3);
 
         if(to.find("filename") != -1)
         {
-            s32 end = to.find("\",");
+            s32 end = CAST(s32, to.find("\","));
             filename = to.substr(start, (end - start));
         }
         else if(to.find("scale") != -1)
         {
-            s32 end = to.find("x");
+            s32 end = CAST(s32, to.find("x"));
             scale = std::stof(to.substr(start, (end - start)));
         }
         else if(to.find("size") != -1)
         {
-            s32 end = to.find("x");
+            s32 end = CAST(s32, to.find("x"));
             size = std::stof(to.substr(start, (end - start)));
         }
 
@@ -694,7 +694,7 @@ s32 make_icon_apple(const Options& options, std::vector<Image>& input_images)
         // Once all parameters are filled write out an image and reset.
         if(!filename.empty() && scale && size)
         {
-            resize_and_save_image(options.output + "/" + filename, input_images, size * scale, options.resize);
+            resize_and_save_image(options.output + "/" + filename, input_images, CAST(s32, size * scale), options.resize);
 
             filename = "";
             scale = 0;
