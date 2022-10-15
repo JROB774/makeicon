@@ -76,9 +76,9 @@ static constexpr const char* PLATFORM_NAMES[Platform_COUNT] = { "win32", "osx", 
 static constexpr const char* MAKEICON_HELP_MESSAGE =
 "makeicon [-help] [-version] [-resize] [-platform:name] -sizes:x,y,z... -input:x,y,z... output\n"
 "\n"
-"    -sizes: ...  [Required]  Comma-separated input size(s) of icon image to generate for the output icon.\n"
-"    -input: ...  [Required]  Comma-separated input image(s) and/or directories and/or .txt files containing file names to be used to generate the icon sizes.\n"
-"    -resize      [Optional]  Whether to resize input images to match the specified sizes.\n"
+"    -sizes:...   [Required]  Comma-separated list of icon size(s) to be included in the generated output icon or a .json file to read sizes from on mac.\n"
+"    -input:...   [Required]  Comma-separated input image(s) and/or directories and/or .txt files containing file names to be used to generate the icon sizes.\n"
+"    -resize      [Optional]  Whether to allow resizing input images to match the requested output sizes, defaults to false.\n"
 "    -platform    [Optional]  Platform to generate icons for. Options are win32, osx, ios, android. Defaults to win32.\n"
 "    -version     [Optional]  Prints out the current version number of the makeicon binary and exits.\n"
 "    -help        [Optional]  Prints out this help/usage message for the program and exits.\n"
@@ -164,7 +164,7 @@ static void resize_and_save_image(const std::string& filename, std::vector<Image
         if(!resize)
         {
             // If no match was found and resize wasn't specified then we fail.
-            ERROR("Size %d was specified but no input image of this size was provided! Potentially specify -resize to allow for reszing to this size.", size);
+            ERROR("Size %d was requested but no input image of this size was provided! Potentially specify -resize to allow for reszing to this size.", size);
         }
         else
         {
