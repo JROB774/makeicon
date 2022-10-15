@@ -267,7 +267,7 @@ static Argument format_argument(std::string arg_str)
     if(!tokens.empty())
     {
         arg.name = tokens[0];
-        if(tokens.size() > 1) // If we have parameters!
+        if(tokens.size() > 1) // We have parameters!
         {
             tokenize_string(tokens[1], ",", arg.params);
         }
