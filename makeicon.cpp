@@ -113,34 +113,78 @@ struct Image
     }
 };
 
+static void free_image(Image& image)
+{
+    free(image.data);
+    image.data = NULL;
+}
+
+struct PngImage
+{
+    explicit PngImage(const Image& image)
+    {
+        int mem_size = 0;
+        int stride_in_bytes = image.width * 4;
+        width = image.width;
+        height = image.height;
+        data = stbi_write_png_to_mem(image.data, stride_in_bytes, width, height, 4, &mem_size);
+        data_size = mem_size;
+    }
+
+    s32     width       = 0;
+    s32     height      = 0;
+    size_t  data_size   = 0;
+    u8*     data        = NULL;
+};
+
+static void free_png_image(PngImage& png_image)
+{
+    stbi_image_free(png_image.data);
+    png_image.data = NULL;
+    png_image.data_size = 0;
+}
+
+// returns true on success, false on failure. The resized image is written to `output`.
+static bool resize_image(const Image& image, s32 output_width, s32 output_height, Image& output)
+{
+    output.bpp = image.bpp;
+    output.width = output_width;
+    output.height = output_height;
+    output.data = CAST(u8*, malloc(output_width * output_height * image.bpp));
+    if (!output.data)
+    {
+        return false;
+    }
+    else
+    {
+        stbir_resize_uint8_srgb(image.data, image.width, image.height, image.width * image.bpp,
+            output.data, output_width, output_height, output_width * image.bpp, image.bpp, 3, 0);
+    }
+    return true;
+}
+
 static bool save_image(const Image& image, std::string file_name, s32 resize_width = 0, s32 resize_height = 0)
 {
     s32 output_width = (resize_width > 0) ? resize_width : image.width;
     s32 output_height = (resize_height > 0) ? resize_height : image.height;
-    u8* output_data = image.data;
+    Image resized_image;
 
     // If the resize options were specified then resize first, this also means we need to free output_data after as we allocate new memory.
-    bool free_output_memory = false;
+    bool did_resize_image = false;
     if(output_width != image.width || output_height != image.height)
     {
-        output_data = CAST(u8*, malloc(output_width*output_height*image.bpp));
-        if(!output_data)
+        if (!resize_image(image, output_width, output_height, resized_image))
         {
             return false;
         }
-        else
-        {
-            stbir_resize_uint8_srgb(image.data, image.width, image.height, image.width*image.bpp,
-                output_data, output_width, output_height, output_width*image.bpp, image.bpp, 3,0);
-            free_output_memory = true;
-        }
+        did_resize_image = true;
     }
 
-    stbi_write_png(file_name.c_str(), output_width, output_height, image.bpp, output_data, output_width*image.bpp);
+    stbi_write_png(file_name.c_str(), output_width, output_height, image.bpp, did_resize_image ? resized_image.data : image.data, output_width*image.bpp);
 
-    if(free_output_memory)
+    if(did_resize_image)
     {
-        free(output_data);
+        free_image(resized_image);
     }
 
     return true;
@@ -172,12 +216,6 @@ static void resize_and_save_image(const std::string& filename, const std::vector
             save_image(input_images.at(input_images.size()-1), filename, size,size);
         }
     }
-}
-
-static void free_image(Image& image)
-{
-    free(image.data);
-    image.data = NULL;
 }
 
 static std::vector<u8> read_entire_binary_file(const std::string& file_name)
@@ -312,6 +350,8 @@ static s32 make_icon(const Options& options)
 int main(int argc, char** argv)
 {
     Options options;
+
+    // test command line: -input:./icon.png -sizes:256,128,64,32 -resize ./icon.ico
 
     // Parse command line arguments given to the program, if there are not
     // any arguments provided then it makes sense to print the help message.
@@ -499,30 +539,26 @@ struct IconDirEntry
 
 s32 make_icon_win32(const Options& options, const std::vector<Image>& input_images)
 {
-    // Make sure the temporary directory, where we store all the icon PNGs, actually exists.
-    std::filesystem::path temp_directory = "makeicon_temp/";
-    if(!std::filesystem::exists(temp_directory))
-    {
-        std::filesystem::create_directory(temp_directory);
-    }
+    std::vector<PngImage> output_images;
 
-    // Save out images to the temporary directroy at the correct sizes the user wants for their icon.
-    //
-    // The reason we do this is because we accept images in a variety of different formats and the
-    // ICO file format only accepts BMP or PNG files, furthermore, using BMPs requires extra work in
-    // order to store them in an ICO (stripping the header, etc.) so we just convert all images to
-    // these temporary PNGs to be directly embedded into the ICO file without any futher processing.
-    //
-    // If an imput image directly matches a desired size to be emebedded into the ICO then it is copied
-    // directly to the folder, otherwise a fatal error occurs. However, if the resize options was
-    // specified then the largest size input image is resized to the desired size first, before copying.
-    for(auto& size: options.sizes)
+    for (auto size : options.sizes)
     {
-        std::string temp_file_name = (temp_directory / (std::to_string(size) + ".png")).string();
-        resize_and_save_image(temp_file_name, input_images, size, options.resize);
-    }
+        // find image of matching size
+        auto it = std::find_if(input_images.begin(), input_images.end(), [=](const Image& image) { return image.width == size && image.height == size; });
 
-    // Now we have all icons saved to the temporary directory we can package them into a final ICO file.
+        if (it != input_images.end())
+        {
+            output_images.push_back(PngImage(*it));
+        }
+        else
+        {
+            // did not find matching input image, so we have to create it
+            Image resized;
+            resize_image(input_images.back(), size, size, resized);
+            output_images.push_back(PngImage(resized));
+            free_image(resized);
+        }
+    }
 
     // Header
     IconDir icon_header;
@@ -533,17 +569,16 @@ s32 make_icon_win32(const Options& options, const std::vector<Image>& input_imag
     // Directory
     size_t offset = sizeof(IconDir) + (sizeof(IconDirEntry) * options.sizes.size());
     std::vector<IconDirEntry> icon_directory;
-    for(auto& size: options.sizes)
+    for(const auto& image: output_images)
     {
-        std::string temp_file_name = (temp_directory / (std::to_string(size) + ".png")).string();
         IconDirEntry icon_dir_entry;
-        icon_dir_entry.width = CAST(u8, size); // Values of 256 (the max) will turn into 0 on cast, which is what the ICO spec wants.
-        icon_dir_entry.height = CAST(u8, size);
+        icon_dir_entry.width = CAST(u8, image.width); // Values of 256 (the max) will turn into 0 on cast, which is what the ICO spec wants.
+        icon_dir_entry.height = CAST(u8, image.height);
         icon_dir_entry.num_colors = 0;
         icon_dir_entry.reserved = 0;
         icon_dir_entry.color_planes = 0;
         icon_dir_entry.bpp = 4*8; // We force to 4-channel RGBA!
-        icon_dir_entry.size = CAST(u32, std::filesystem::file_size(temp_file_name));
+        icon_dir_entry.size = CAST(u32, image.data_size);
         icon_dir_entry.offset = CAST(u32, offset);
         icon_directory.push_back(icon_dir_entry);
         offset += icon_dir_entry.size;
@@ -562,16 +597,16 @@ s32 make_icon_win32(const Options& options, const std::vector<Image>& input_imag
         {
             output.write((CAST(char*, &dir_entry)), sizeof(dir_entry));
         }
-        for(auto& size: options.sizes)
+        for(const auto& image: output_images)
         {
-            std::string temp_file_name = (temp_directory / (std::to_string(size) + ".png")).string();
-            auto data = read_entire_binary_file(temp_file_name);
-            output.write(CAST(char*, &data[0]), data.size());
+            output.write(CAST(char*, image.data), image.data_size);
         }
     }
 
-    // The temporary directory is deleted.
-    std::filesystem::remove_all(temp_directory);
+    for (auto& image : output_images)
+    {
+        free_png_image(image);
+    }
 
     return EXIT_SUCCESS;
 }
