@@ -104,7 +104,7 @@ struct Image
 {
     s32 width  = 0;
     s32 height = 0;
-    s32 bpp    = 0;
+    s32 bpp    = 0; // bytes per pixel
     u8* data   = NULL;
 
     inline bool operator<(const Image& rhs) const
@@ -491,7 +491,7 @@ struct IconDirEntry
     u8  num_colors;
     u8  reserved;
     u16 color_planes;
-    u16 bpp;
+    u16 bpp; // bits per pixel
     u32 size;
     u32 offset;
 };
