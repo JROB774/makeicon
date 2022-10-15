@@ -113,7 +113,7 @@ struct Image
     }
 };
 
-static bool save_image(Image& image, std::string file_name, s32 resize_width = 0, s32 resize_height = 0)
+static bool save_image(const Image& image, std::string file_name, s32 resize_width = 0, s32 resize_height = 0)
 {
     s32 output_width = (resize_width > 0) ? resize_width : image.width;
     s32 output_height = (resize_height > 0) ? resize_height : image.height;
@@ -146,7 +146,7 @@ static bool save_image(Image& image, std::string file_name, s32 resize_width = 0
     return true;
 }
 
-static void resize_and_save_image(const std::string& filename, std::vector<Image>& input_images, s32 size, bool resize)
+static void resize_and_save_image(const std::string& filename, const std::vector<Image>& input_images, s32 size, bool resize)
 {
     // Search for matching image input size to save out as PNG.
     bool match_found = false;
@@ -237,9 +237,9 @@ static Argument format_argument(std::string arg_str)
     return arg;
 }
 
-static s32 make_icon_win32(const Options& options, std::vector<Image>& input_images);
-static s32 make_icon_android(const Options& options, std::vector<Image>& input_images);
-static s32 make_icon_apple(const Options& options, std::vector<Image>& input_images);
+static s32 make_icon_win32(const Options& options, const std::vector<Image>& input_images);
+static s32 make_icon_android(const Options& options, const std::vector<Image>& input_images);
+static s32 make_icon_apple(const Options& options, const std::vector<Image>&input_images);
 
 static s32 make_icon(const Options& options)
 {
@@ -497,7 +497,7 @@ struct IconDirEntry
 };
 #pragma pack(pop)
 
-s32 make_icon_win32(const Options& options, std::vector<Image>& input_images)
+s32 make_icon_win32(const Options& options, const std::vector<Image>& input_images)
 {
     // Make sure the temporary directory, where we store all the icon PNGs, actually exists.
     std::filesystem::path temp_directory = "makeicon_temp/";
@@ -580,7 +580,7 @@ s32 make_icon_win32(const Options& options, std::vector<Image>& input_images)
 // Android
 //
 
-s32 make_icon_android(const Options& options, std::vector<Image>& input_images)
+s32 make_icon_android(const Options& options, const std::vector<Image>& input_images)
 {
     // Android needs specific downsampled sizes for thumbnails.
 
@@ -624,7 +624,7 @@ s32 make_icon_android(const Options& options, std::vector<Image>& input_images)
 // Apple
 //
 
-s32 make_icon_apple(const Options& options, std::vector<Image>& input_images)
+s32 make_icon_apple(const Options& options, const std::vector<Image>& input_images)
 {
     if(options.contents.empty())
     {
