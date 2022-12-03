@@ -76,9 +76,9 @@ static constexpr const char* PLATFORM_NAMES[Platform_COUNT] = { "win32", "osx", 
 static constexpr const char* MAKEICON_HELP_MESSAGE =
 "makeicon [-help] [-version] [-resize] [-platform:name] -sizes:x,y,z... -input:x,y,z... output\n"
 "\n"
-"    -sizes: ...  [Required]  Comma-separated input size(s) of icon image to generate for the output icon.\n"
-"    -input: ...  [Required]  Comma-separated input image(s) and/or directories and/or .txt files containing file names to be used to generate the icon sizes.\n"
-"    -resize      [Optional]  Whether to resize input images to match the specified sizes.\n"
+"    -sizes:...   [Required]  Comma-separated list of icon size(s) to be included in the generated output icon or a .json file to read sizes from on mac.\n"
+"    -input:...   [Required]  Comma-separated input image(s) and/or directories and/or .txt files containing file names to be used to generate the icon sizes.\n"
+"    -resize      [Optional]  Whether to allow resizing input images to match the requested output sizes, defaults to false.\n"
 "    -platform    [Optional]  Platform to generate icons for. Options are win32, osx, ios, android. Defaults to win32.\n"
 "    -version     [Optional]  Prints out the current version number of the makeicon binary and exits.\n"
 "    -help        [Optional]  Prints out this help/usage message for the program and exits.\n"
@@ -104,7 +104,7 @@ struct Image
 {
     s32 width  = 0;
     s32 height = 0;
-    s32 bpp    = 0;
+    s32 bpp    = 0; // bytes per pixel
     u8* data   = NULL;
 
     inline bool operator<(const Image& rhs) const
@@ -113,40 +113,84 @@ struct Image
     }
 };
 
-static bool save_image(Image& image, std::string file_name, s32 resize_width = 0, s32 resize_height = 0)
+static void free_image(Image& image)
+{
+    free(image.data);
+    image.data = NULL;
+}
+
+struct PngImage
+{
+    explicit PngImage(const Image& image)
+    {
+        int mem_size = 0;
+        int stride_in_bytes = image.width * 4;
+        width = image.width;
+        height = image.height;
+        data = stbi_write_png_to_mem(image.data, stride_in_bytes, width, height, 4, &mem_size);
+        data_size = mem_size;
+    }
+
+    s32     width       = 0;
+    s32     height      = 0;
+    size_t  data_size   = 0;
+    u8*     data        = NULL;
+};
+
+static void free_png_image(PngImage& png_image)
+{
+    stbi_image_free(png_image.data);
+    png_image.data = NULL;
+    png_image.data_size = 0;
+}
+
+// returns true on success, false on failure. The resized image is written to `output`.
+static bool resize_image(const Image& image, s32 output_width, s32 output_height, Image& output)
+{
+    output.bpp = image.bpp;
+    output.width = output_width;
+    output.height = output_height;
+    output.data = CAST(u8*, malloc(output_width * output_height * image.bpp));
+    if (!output.data)
+    {
+        return false;
+    }
+    else
+    {
+        stbir_resize_uint8_srgb(image.data, image.width, image.height, image.width * image.bpp,
+            output.data, output_width, output_height, output_width * image.bpp, image.bpp, 3, 0);
+    }
+    return true;
+}
+
+static bool save_image(const Image& image, std::string file_name, s32 resize_width = 0, s32 resize_height = 0)
 {
     s32 output_width = (resize_width > 0) ? resize_width : image.width;
     s32 output_height = (resize_height > 0) ? resize_height : image.height;
-    u8* output_data = image.data;
+    Image resized_image;
 
     // If the resize options were specified then resize first, this also means we need to free output_data after as we allocate new memory.
-    bool free_output_memory = false;
+    bool did_resize_image = false;
     if(output_width != image.width || output_height != image.height)
     {
-        output_data = CAST(u8*, malloc(output_width*output_height*image.bpp));
-        if(!output_data)
+        if (!resize_image(image, output_width, output_height, resized_image))
         {
             return false;
         }
-        else
-        {
-            stbir_resize_uint8_srgb(image.data, image.width, image.height, image.width*image.bpp,
-                output_data, output_width, output_height, output_width*image.bpp, image.bpp, 3,0);
-            free_output_memory = true;
-        }
+        did_resize_image = true;
     }
 
-    stbi_write_png(file_name.c_str(), output_width, output_height, image.bpp, output_data, output_width*image.bpp);
+    stbi_write_png(file_name.c_str(), output_width, output_height, image.bpp, did_resize_image ? resized_image.data : image.data, output_width*image.bpp);
 
-    if(free_output_memory)
+    if(did_resize_image)
     {
-        free(output_data);
+        free_image(resized_image);
     }
 
     return true;
 }
 
-static void resize_and_save_image(const std::string& filename, std::vector<Image>& input_images, s32 size, bool resize)
+static void resize_and_save_image(const std::string& filename, const std::vector<Image>& input_images, s32 size, bool resize)
 {
     // Search for matching image input size to save out as PNG.
     bool match_found = false;
@@ -164,7 +208,7 @@ static void resize_and_save_image(const std::string& filename, std::vector<Image
         if(!resize)
         {
             // If no match was found and resize wasn't specified then we fail.
-            ERROR("Size %d was specified but no input image of this size was provided! Potentially specify -resize to allow for reszing to this size.", size);
+            ERROR("Size %d was requested but no input image of this size was provided! Potentially specify -resize to allow for reszing to this size.", size);
         }
         else
         {
@@ -172,12 +216,6 @@ static void resize_and_save_image(const std::string& filename, std::vector<Image
             save_image(input_images.at(input_images.size()-1), filename, size,size);
         }
     }
-}
-
-static void free_image(Image& image)
-{
-    free(image.data);
-    image.data = NULL;
 }
 
 static std::vector<u8> read_entire_binary_file(const std::string& file_name)
@@ -229,7 +267,7 @@ static Argument format_argument(std::string arg_str)
     if(!tokens.empty())
     {
         arg.name = tokens[0];
-        if(tokens.size() > 1) // If we have parameters!
+        if(tokens.size() > 1) // We have parameters!
         {
             tokenize_string(tokens[1], ",", arg.params);
         }
@@ -237,9 +275,9 @@ static Argument format_argument(std::string arg_str)
     return arg;
 }
 
-static s32 make_icon_win32(const Options& options, std::vector<Image>& input_images);
-static s32 make_icon_android(const Options& options, std::vector<Image>& input_images);
-static s32 make_icon_apple(const Options& options, std::vector<Image>& input_images);
+static s32 make_icon_win32(const Options& options, const std::vector<Image>& input_images);
+static s32 make_icon_android(const Options& options, const std::vector<Image>& input_images);
+static s32 make_icon_apple(const Options& options, const std::vector<Image>&input_images);
 
 static s32 make_icon(const Options& options)
 {
@@ -312,6 +350,8 @@ static s32 make_icon(const Options& options)
 int main(int argc, char** argv)
 {
     Options options;
+
+    // test command line: -input:./icon.png -sizes:256,128,64,32 -resize ./icon.ico
 
     // Parse command line arguments given to the program, if there are not
     // any arguments provided then it makes sense to print the help message.
@@ -491,38 +531,34 @@ struct IconDirEntry
     u8  num_colors;
     u8  reserved;
     u16 color_planes;
-    u16 bpp;
+    u16 bpp; // bits per pixel
     u32 size;
     u32 offset;
 };
 #pragma pack(pop)
 
-s32 make_icon_win32(const Options& options, std::vector<Image>& input_images)
+s32 make_icon_win32(const Options& options, const std::vector<Image>& input_images)
 {
-    // Make sure the temporary directory, where we store all the icon PNGs, actually exists.
-    std::filesystem::path temp_directory = "makeicon_temp/";
-    if(!std::filesystem::exists(temp_directory))
-    {
-        std::filesystem::create_directory(temp_directory);
-    }
+    std::vector<PngImage> output_images;
 
-    // Save out images to the temporary directroy at the correct sizes the user wants for their icon.
-    //
-    // The reason we do this is because we accept images in a variety of different formats and the
-    // ICO file format only accepts BMP or PNG files, furthermore, using BMPs requires extra work in
-    // order to store them in an ICO (stripping the header, etc.) so we just convert all images to
-    // these temporary PNGs to be directly embedded into the ICO file without any futher processing.
-    //
-    // If an imput image directly matches a desired size to be emebedded into the ICO then it is copied
-    // directly to the folder, otherwise a fatal error occurs. However, if the resize options was
-    // specified then the largest size input image is resized to the desired size first, before copying.
-    for(auto& size: options.sizes)
+    for (auto size : options.sizes)
     {
-        std::string temp_file_name = (temp_directory / (std::to_string(size) + ".png")).string();
-        resize_and_save_image(temp_file_name, input_images, size, options.resize);
-    }
+        // find image of matching size
+        auto it = std::find_if(input_images.begin(), input_images.end(), [=](const Image& image) { return image.width == size && image.height == size; });
 
-    // Now we have all icons saved to the temporary directory we can package them into a final ICO file.
+        if (it != input_images.end())
+        {
+            output_images.push_back(PngImage(*it));
+        }
+        else
+        {
+            // did not find matching input image, so we have to create it
+            Image resized;
+            resize_image(input_images.back(), size, size, resized);
+            output_images.push_back(PngImage(resized));
+            free_image(resized);
+        }
+    }
 
     // Header
     IconDir icon_header;
@@ -533,17 +569,16 @@ s32 make_icon_win32(const Options& options, std::vector<Image>& input_images)
     // Directory
     size_t offset = sizeof(IconDir) + (sizeof(IconDirEntry) * options.sizes.size());
     std::vector<IconDirEntry> icon_directory;
-    for(auto& size: options.sizes)
+    for(const auto& image: output_images)
     {
-        std::string temp_file_name = (temp_directory / (std::to_string(size) + ".png")).string();
         IconDirEntry icon_dir_entry;
-        icon_dir_entry.width = CAST(u8, size); // Values of 256 (the max) will turn into 0 on cast, which is what the ICO spec wants.
-        icon_dir_entry.height = CAST(u8, size);
+        icon_dir_entry.width = CAST(u8, image.width); // Values of 256 (the max) will turn into 0 on cast, which is what the ICO spec wants.
+        icon_dir_entry.height = CAST(u8, image.height);
         icon_dir_entry.num_colors = 0;
         icon_dir_entry.reserved = 0;
         icon_dir_entry.color_planes = 0;
         icon_dir_entry.bpp = 4*8; // We force to 4-channel RGBA!
-        icon_dir_entry.size = CAST(u32, std::filesystem::file_size(temp_file_name));
+        icon_dir_entry.size = CAST(u32, image.data_size);
         icon_dir_entry.offset = CAST(u32, offset);
         icon_directory.push_back(icon_dir_entry);
         offset += icon_dir_entry.size;
@@ -562,16 +597,16 @@ s32 make_icon_win32(const Options& options, std::vector<Image>& input_images)
         {
             output.write((CAST(char*, &dir_entry)), sizeof(dir_entry));
         }
-        for(auto& size: options.sizes)
+        for(const auto& image: output_images)
         {
-            std::string temp_file_name = (temp_directory / (std::to_string(size) + ".png")).string();
-            auto data = read_entire_binary_file(temp_file_name);
-            output.write(CAST(char*, &data[0]), data.size());
+            output.write(CAST(char*, image.data), image.data_size);
         }
     }
 
-    // The temporary directory is deleted.
-    std::filesystem::remove_all(temp_directory);
+    for (auto& image : output_images)
+    {
+        free_png_image(image);
+    }
 
     return EXIT_SUCCESS;
 }
@@ -580,7 +615,7 @@ s32 make_icon_win32(const Options& options, std::vector<Image>& input_images)
 // Android
 //
 
-s32 make_icon_android(const Options& options, std::vector<Image>& input_images)
+s32 make_icon_android(const Options& options, const std::vector<Image>& input_images)
 {
     // Android needs specific downsampled sizes for thumbnails.
 
@@ -624,7 +659,7 @@ s32 make_icon_android(const Options& options, std::vector<Image>& input_images)
 // Apple
 //
 
-s32 make_icon_apple(const Options& options, std::vector<Image>& input_images)
+s32 make_icon_apple(const Options& options, const std::vector<Image>& input_images)
 {
     if(options.contents.empty())
     {
@@ -665,21 +700,21 @@ s32 make_icon_apple(const Options& options, std::vector<Image>& input_images)
     f32 size = 0;
     while(getline(ss, to, '\n'))
     {
-        s32 start = to.find(": \"") + 3;
+        s32 start = CAST(s32, to.find(": \"") + 3);
 
         if(to.find("filename") != -1)
         {
-            s32 end = to.find("\",");
+            s32 end = CAST(s32, to.find("\","));
             filename = to.substr(start, (end - start));
         }
         else if(to.find("scale") != -1)
         {
-            s32 end = to.find("x");
+            s32 end = CAST(s32, to.find("x"));
             scale = std::stof(to.substr(start, (end - start)));
         }
         else if(to.find("size") != -1)
         {
-            s32 end = to.find("x");
+            s32 end = CAST(s32, to.find("x"));
             size = std::stof(to.substr(start, (end - start)));
         }
 
@@ -694,7 +729,7 @@ s32 make_icon_apple(const Options& options, std::vector<Image>& input_images)
         // Once all parameters are filled write out an image and reset.
         if(!filename.empty() && scale && size)
         {
-            resize_and_save_image(options.output + "/" + filename, input_images, size * scale, options.resize);
+            resize_and_save_image(options.output + "/" + filename, input_images, CAST(s32, size * scale), options.resize);
 
             filename = "";
             scale = 0;

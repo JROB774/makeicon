@@ -6,9 +6,14 @@
 makeicon [-help] [-version] [-resize] [-platform:name] -sizes:x,y,z... -input:x,y,z... output
 ```
 
-A command-line utility for easily generating application icons from image files for
-a variety of different platforms. Icon generation is available for the following
-platforms: **Windows**, **iOS**, **MacOS**, **Android**.
+A command-line utility for generating application icons for **Windows**, **iOS**, **MacOS** and **Android**.
+
+### Example Usage
+
+```
+# Generating an .ico file on windows
+makeicon.exe -input:./assets/source/icon.png -sizes:256,128,64,32 -resize ./assets/built/icon.ico
+```
 
 ## Building
 
