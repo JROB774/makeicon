@@ -79,6 +79,8 @@ static constexpr const char* MAKEICON_HELP_MESSAGE =
 "    -sizes:...   [Required]  Comma-separated list of icon size(s) to be included in the generated output icon or a .json file to read sizes from on mac.\n"
 "    -input:...   [Required]  Comma-separated input image(s) and/or directories and/or .txt files containing file names to be used to generate the icon sizes.\n"
 "    -resize      [Optional]  Whether to allow resizing input images to match the requested output sizes, defaults to false.\n"
+"    -radius      [Optional]  Round the edges of the icon image by percentage of size, defaults to 0\n"
+"    -padding     [Optional]  Adds alpha padding around icon by percentage of size, defaults to 0\n"
 "    -platform    [Optional]  Platform to generate icons for. Options are win32, osx, ios, android. Defaults to win32.\n"
 "    -version     [Optional]  Prints out the current version number of the makeicon binary and exits.\n"
 "    -help        [Optional]  Prints out this help/usage message for the program and exits.\n"
@@ -98,6 +100,8 @@ struct Options
     std::vector<std::string> input;
     std::string              contents;
     std::string              output;
+    f32                      padding = 0.0f;
+    f32                      radius = 0.0f;
 };
 
 struct Image
@@ -161,6 +165,85 @@ static bool resize_image(const Image& image, s32 output_width, s32 output_height
             output.data, output_width, output_height, output_width * image.bpp, image.bpp, 3, 0);
     }
     return true;
+}
+
+static void add_border(Image& image, f32 padding)
+{
+    padding = padding > 0.5f ? 0.5f: padding;
+    u32 inner_size_width = (1.0f - 2.0f * padding) * image.width;
+    u32 inner_size_height = (1.0f - 2.0f * padding) * image.height;
+
+    u8* padded_data = CAST(u8*, malloc(inner_size_width * inner_size_height * image.bpp));
+    stbir_resize_uint8_srgb(image.data, image.width, image.height, image.width * image.bpp,
+                            padded_data, inner_size_width, inner_size_height, inner_size_width * image.bpp, image.bpp, 3, 0);
+
+    u32 padded_width = padding * image.width;
+    u32 padded_height = padding * image.height;
+
+    u32 output_stride = image.width * image.bpp;
+    u32 src_stride = inner_size_width * image.bpp;
+
+    u8* output_dst = image.data + padded_width * image.bpp + output_stride * padded_height;
+    u8* src = padded_data;
+    memset(image.data, 0, image.width * image.height * image.bpp);
+    for (u32 y = 0; y < inner_size_height; ++y)
+    {
+        memcpy(output_dst, src, inner_size_width * image.bpp);
+        output_dst += output_stride;
+        src += src_stride;
+    }
+    free(padded_data);
+}
+
+static void apply_radius(u8* data, s32 width, s32 bpp, s32 cx, s32 cy,
+                        s32 startX, s32 endX, s32 startY, s32 endY, 
+                        s32 radius_squared)
+{
+    for (u32 y = startY; y < endY; ++y)
+    {
+        for (u32 x = startX; x < endX; ++x)
+        {
+            u32 d = (cy - y) * (cy - y) + (cx - x) * (cx - x);
+
+            if (d > radius_squared)
+            {
+                u32 pos = (y * width + x) * bpp;
+                memset(data + pos, 0, bpp);
+            }
+        }
+    }
+}
+
+static void add_corner_radius(Image& image, f32 radius)
+{
+    radius = radius > 0.5f ? 0.5f: radius;
+
+    s32 radius_squared = image.width * radius;
+    radius_squared *= radius_squared;               
+                                                    
+    s32 left = image.width * radius;
+    s32 right = image.width - left;
+    
+    s32 top = image.height * radius;
+    s32 bottom = image.height - top;
+
+    apply_radius(image.data, image.width, image.bpp, left, top, 0, left, 0, top, radius_squared); // top left
+    apply_radius(image.data, image.width, image.bpp, left, bottom, 0, left, bottom, image.height, radius_squared); // bottom left
+    apply_radius(image.data, image.width, image.bpp, right, top, right, image.width, 0, top, radius_squared); // top right
+    apply_radius(image.data, image.width, image.bpp, right, bottom, right, image.width, bottom, image.height, radius_squared); // bottom right
+}
+
+static void modify_image(Image& image, const Options& options)
+{
+    if (options.radius > 0.0f)
+    {
+        add_corner_radius(image, options.radius);
+    }
+
+    if (options.padding > 0.0f)
+    {
+        add_border(image, options.padding);
+    }
 }
 
 static bool save_image(const Image& image, std::string file_name, s32 resize_width = 0, s32 resize_height = 0)
@@ -314,6 +397,11 @@ static s32 make_icon(const Options& options)
         }
     }
 
+    for (auto& img : input_images)
+    {
+        modify_image(img, options);
+    }
+
     s32 result = EXIT_FAILURE;
 
     // Run the icon generation code for the desired platform.
@@ -444,6 +532,20 @@ int main(int argc, char** argv)
                             options.platform = i;
                             break;
                         }
+                    }
+                }
+                else if (arg.name == "padding")
+                {
+                    for (auto& param : arg.params)
+                    {
+                        options.padding = std::stof(param);
+                    }
+                }
+                else if (arg.name == "radius")
+                {
+                    for (auto& param : arg.params)
+                    {
+                        options.radius = std::stof(param);
                     }
                 }
                 else if(arg.name == "version")
