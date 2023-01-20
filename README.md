@@ -46,4 +46,4 @@ binaries available for download from this repository's releases tab.
 
 ## License
 
-This project is available under the MIT License, Copyright (C) Joshua Robertson 2021 - 2022.
+This project is available under the MIT License, Copyright (C) Joshua Robertson 2021 - 2023.
