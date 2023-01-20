@@ -28,7 +28,7 @@
 #include <stb_image.h>
 
 #define MAKEICON_VERSION_MAJOR 1
-#define MAKEICON_VERSION_MINOR 3
+#define MAKEICON_VERSION_MINOR 4
 
 #define ERROR(...)                       \
 do                                       \
